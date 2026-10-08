@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ジャンプ掲載順予想</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 720px;
+      margin: 30px auto;
+      padding: 0 16px;
+      background: #f5f5f5;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.5rem;
+      color: #333;
+      margin-bottom: 18px;
+    }
+    #capture-area {
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 8px;
+    }
+    #manga-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: repeat(10, auto);
+      grid-auto-flow: column;
+      gap: 10px;
+    }
+    .slot {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .number {
+      width: 28px;
+      text-align: right;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #333;
+      flex-shrink: 0;
+    }
+    .title-item {
+      flex-grow: 1;
+      background: white;
+      padding: 11px 14px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      cursor: grab;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .title-item:active {
+      cursor: grabbing;
+    }
+    .title-item.dragging {
+      opacity: 0.5;
+      background: #e0e0e0;
+    }
+    .button-area {
+      text-align: center;
+      margin-top: 24px;
+    }
+    button {
+      background: #e60012;
+      color: white;
+      border: none;
+      padding: 12px 28px;
+      font-size: 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #c40010;
+    }
+    p.note {
+      text-align: center;
+      color: #666;
+      font-size: 0.9rem;
+      margin-top: 14px;
+    }
+
+    /* スマホ対応 */
+    @media (max-width: 500px) {
+      #manga-list {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        grid-auto-flow: row;
+      }
+      body {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="capture-area">
+    <h1>ジャンプ掲載順予想</h1>
+    <div id="manga-list"></div>
+  </div>
+
+  <div class="button-area">
+    <button id="download-btn">画像としてダウンロード</button>
+  </div>
+  <p class="note">作品名の部分をドラッグして順番を入れ替えられます</p>
+
+  <script>
+    // ===== 作品リスト =====
+    const mangaList = [
+      "ONE PIECE",
+      "魔男のイチ",
+      "あかね噺",
+      "SAKAMOTO DAYS",
+      "悪祓士のキヨシくん",
+      "さむわんへるつ",
+      "僕とロボコ",
+      "しのびごと",
+      "ロクのおかしな家",
+      "グレイキースの魔界語訳録",
+      "UNDER DOCTOR",
+      "ウラのレポート",
+      "ウィッチウォッチ",
+      "アニマルシグナル",
+      "鵺の陰陽師",
+      "2年B組 勇者デストロイヤーず",
+      "カグラバチ",
+      "HAL FORMULA",
+      "カノンマスター",
+      "読切（センター）"
+    ];
+    // =====================
+
+    const listElement = document.getElementById("manga-list");
+    let draggedItem = null;
+
+    function renderList() {
+      listElement.innerHTML = "";
+
+      mangaList.forEach((title, index) => {
+        // スロット（数字 + 作品名）
+        const slot = document.createElement("div");
+        slot.className = "slot";
+
+        // 固定の数字
+        const numberSpan = document.createElement("span");
+        numberSpan.className = "number";
+        numberSpan.textContent = index + 1;
+
+        // ドラッグ可能な作品名部分
+        const titleDiv = document.createElement("div");
+        titleDiv.className = "title-item";
+        titleDiv.textContent = title;
+        titleDiv.draggable = true;
+        titleDiv.dataset.index = index;
+
+        // ドラッグ開始
+        titleDiv.addEventListener("dragstart", (e) => {
+          draggedItem = titleDiv;
+          titleDiv.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+        });
+
+        // ドラッグ終了
+        titleDiv.addEventListener("dragend", () => {
+          titleDiv.classList.remove("dragging");
+          draggedItem = null;
+        });
+
+        // ドラッグオーバー
+        titleDiv.addEventListener("dragover", (e) => {
+          e.preventDefault();
+        });
+
+        // ドロップ
+        titleDiv.addEventListener("drop", (e) => {
+          e.preventDefault();
+          if (draggedItem === titleDiv) return;
+
+          const fromIndex = Number(draggedItem.dataset.index);
+          const toIndex = Number(titleDiv.dataset.index);
+
+          const [moved] = mangaList.splice(fromIndex, 1);
+          mangaList.splice(toIndex, 0, moved);
+
+          renderList();
+        });
+
+        slot.appendChild(numberSpan);
+        slot.appendChild(titleDiv);
+        listElement.appendChild(slot);
+      });
+    }
+
+    renderList();
+
+    // 画像ダウンロード
+    document.getElementById("download-btn").addEventListener("click", () => {
+      const captureArea = document.getElementById("capture-area");
+
+      html2canvas(captureArea, {
+        backgroundColor: "#f5f5f5",
+        scale: 2,
+        useCORS: true
+      }).then(canvas => {
+        const link = document.createElement("a");
+        link.download = "ジャンプ掲載順予想.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      });
+    });
+  </script>
+
+</body>
+</html>
